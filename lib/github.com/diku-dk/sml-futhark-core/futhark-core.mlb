@@ -1,0 +1,6 @@
+local $(SML_LIB)/basis/basis.mlb
+      ../sml-parse/parse.mlb
+in
+ast.sml
+parse.sml
+end
