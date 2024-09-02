@@ -4,6 +4,12 @@ datatype IntType = I8 | I16 | I32 | I64
 
 datatype FloatType = F16 | F32 | F64
 
+datatype Attr =
+  ATTR_NAME of string
+| ATTR_INT of int
+| ATTR_COMP of string * Attr list
+
+type Attrs = Attr list
 
 datatype Type =
   UNIT
@@ -45,6 +51,11 @@ and Body =
 
 datatype Fundef =
   FUNDEF of
-    {name: string, params: Param list, ret: (RetType * RetAls) list, body: Body}
+    { attrs: Attrs
+    , name: string
+    , params: Param list
+    , ret: (RetType * RetAls) list
+    , body: Body
+    }
 
 datatype Prog = PROG of unit * Stm list * Fundef list

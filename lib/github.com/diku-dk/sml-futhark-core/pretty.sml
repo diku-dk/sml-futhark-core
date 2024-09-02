@@ -7,6 +7,14 @@ fun punctuate c = concat o intersperse c
 
 fun prettySubExp se = se
 
+fun prettyAttr (ATTR_INT x) = Int.toString x
+  | prettyAttr (ATTR_NAME x) = x
+  | prettyAttr (ATTR_COMP (x, attrs)) =
+      x ^ "(" ^ punctuate ", " (map prettyAttr attrs) ^ ")"
+
+val prettyAttrs =
+  punctuate "\n" o map (fn x => "#[" ^ prettyAttr x ^ "]" ^ "\n")
+
 fun prettyIntType I8 = "i8"
   | prettyIntType I16 = "i16"
   | prettyIntType I32 = "i32"
@@ -74,9 +82,10 @@ and prettyLambda (LAMBDA (params, types, body)) =
   "\\ {" ^ punctuate " " (map prettyParam params) ^ "} : {"
   ^ punctuate ", " (map prettyType types) ^ "} -> " ^ prettyBody body
 
-fun prettyFunDef (FUNDEF {name, params, ret, body}) =
-  "fun " ^ name ^ "(" ^ (punctuate ", " (map prettyParam params)) ^ ")" ^ "\n"
-  ^ ": " ^ prettyRet ret ^ " = " ^ prettyBody body
+fun prettyFunDef (FUNDEF {attrs, name, params, ret, body}) =
+  prettyAttrs attrs ^ "fun " ^ name ^ "("
+  ^ (punctuate ", " (map prettyParam params)) ^ ")" ^ "\n" ^ ": "
+  ^ prettyRet ret ^ " = " ^ prettyBody body
 
 fun prettyProg (PROG ((), stms, funs)) =
   punctuate "\n" (map prettyStm stms @ map prettyFunDef funs)

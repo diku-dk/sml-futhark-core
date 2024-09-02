@@ -190,6 +190,15 @@ local
          SOME x => accept x
        | NONE => reject "expected integer")
 
+  fun pAttr () =
+    choice
+      [ ATTR_INT <$> pInt
+      , liftM2 ATTR_COMP (pWord, parens (sepBy (delay0 pAttr) (eat COMMA)))
+      , ATTR_NAME <$> pWord
+      ]
+
+  val pAttrs = many (eat HASH *> brackets (delay0 pAttr))
+
   val pTypes = eat (WORD "types") *> eat LBRACE *> eat RBRACE
 
   val pSubExp = choice [eat LPAREN *> eat RPAREN *> accept "()", pWord]
@@ -292,10 +301,17 @@ local
 
   val pFunDef =
     let
-      fun mk fname params ret body =
-        (FUNDEF {name = fname, params = params, ret = ret, body = body})
+      fun mk attrs fname params ret body =
+        (FUNDEF
+           { attrs = attrs
+           , name = fname
+           , params = params
+           , ret = ret
+           , body = body
+           })
     in
-      mk <$> (eat (WORD "fun") *> pWord) <*> parens (sepBy pParam (eat COMMA))
+      mk <$> pAttrs <*> (eat (WORD "fun") *> pWord)
+      <*> parens (sepBy pParam (eat COMMA))
       <*> (eat COLON *> braces (sepBy pRet (eat COMMA)))
       <*> (eat EQ *> braces (delay0 pBody))
     end
