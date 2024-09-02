@@ -163,6 +163,14 @@ local
          WORD w => accept w
        | _ => reject "expected identifier")
 
+  val pInt =
+    pWord
+    >>=
+    (fn w =>
+       case Int.fromString w of
+         SOME x => accept x
+       | NONE => reject "expected integer")
+
   val pTypes = eat (WORD "types") *> eat LBRACE *> eat RBRACE
 
   val pSubExp = choice [eat LPAREN *> eat RPAREN *> accept "()", pWord]
@@ -194,6 +202,13 @@ local
 
   val pBinOp = eat (WORD "add32") *> accept "add32"
 
+  val pRetAls: RetAls p =
+    parens
+      (liftM2 RETALS (brackets (sepBy pInt (eat COMMA)) <* eat COMMA, brackets
+         (sepBy pInt (eat COMMA))))
+
+  val pRet = pRetType >>> choice [eat HASH *> pRetAls, accept (RETALS ([], []))]
+
   fun pExp () =
     choice
       [ eat (WORD "apply")
@@ -201,7 +216,7 @@ local
         liftM3 APPLY
           ( pWord
           , parens (sepBy pSubExp (eat COMMA))
-          , eat COLON *> braces (sepBy pType (eat COMMA))
+          , eat COLON *> braces (sepBy pRet (eat COMMA))
           )
       , SOAC <$> delay0 pSOAC
       , liftM2 BINOP (pBinOp, parens (pSubExp >>> (eat COMMA *> pSubExp)))
@@ -241,11 +256,11 @@ local
 
   val pFunDef =
     let
-      fun mk fname params rettype body =
-        (FUNDEF {name = fname, params = params, rettype = rettype, body = body})
+      fun mk fname params ret body =
+        (FUNDEF {name = fname, params = params, ret = ret, body = body})
     in
       mk <$> (eat (WORD "fun") *> pWord) <*> parens (sepBy pParam (eat COMMA))
-      <*> (eat COLON *> braces (sepBy pRetType (eat COMMA)))
+      <*> (eat COLON *> braces (sepBy pRet (eat COMMA)))
       <*> (eat EQ *> braces (delay0 pBody))
     end
 
