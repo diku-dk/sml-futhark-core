@@ -7,15 +7,19 @@ fun punctuate c = concat o intersperse c
 
 fun prettySubExp se = se
 
+fun prettyIntType I8 = "i8"
+  | prettyIntType I16 = "i16"
+  | prettyIntType I32 = "i32"
+  | prettyIntType I64 = "i64"
+
+fun prettyFloatType F16 = "f16"
+  | prettyFloatType F32 = "f32"
+  | prettyFloatType F64 = "f64"
+
 fun prettyType UNIT = "unit"
   | prettyType BOOL = "bool"
-  | prettyType I8 = "i8"
-  | prettyType I16 = "i16"
-  | prettyType I32 = "i32"
-  | prettyType I64 = "i64"
-  | prettyType F16 = "f16"
-  | prettyType F32 = "f32"
-  | prettyType F64 = "f64"
+  | prettyType (INT x) = prettyIntType x
+  | prettyType (FLOAT x) = prettyFloatType x
   | prettyType (ARRAY (d, t)) =
       "[" ^ prettySubExp d ^ "]" ^ prettyType t
 
@@ -47,6 +51,9 @@ fun prettyExp (SUBEXP se) = se
   | prettyExp (APPLY (f, args, ret)) =
       "apply " ^ f ^ "(" ^ punctuate ", " (map prettySubExp args) ^ ")" ^ " : "
       ^ prettyRet ret
+  | prettyExp (CONVOP (SEXT (ft, tt), se)) =
+      punctuate " "
+        ["sext", prettyIntType ft, prettySubExp se, prettyIntType tt]
   | prettyExp (SOAC soac) = prettySoac soac
 
 and prettyStm (STM (pat, exp)) =

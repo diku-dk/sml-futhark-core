@@ -17,6 +17,8 @@ struct
   | DASH
   | ARROW
   | HASH
+  | QUESTION
+  | AT
   | STRING of string
   | WORD of string
   fun pp_token LBRACE = "{"
@@ -30,6 +32,8 @@ struct
     | pp_token COLON = ":"
     | pp_token EQ = "="
     | pp_token COMMA = ","
+    | pp_token QUESTION = "?"
+    | pp_token AT = "@"
     | pp_token BACKSLASH = "\\"
     | pp_token ASTERISK = "*"
     | pp_token DASH = "-"
@@ -42,6 +46,15 @@ end
 fun repeat 0 _ x = x
   | repeat n f x =
       repeat (n - 1) f (f x)
+
+fun constituent #"_" = true
+  | constituent #"*" = true
+  | constituent #"+" = true
+  | constituent #"/" = true
+  | constituent #"-" = true
+  | constituent #"." = true
+  | constituent c =
+      Char.isAlphaNum c orelse ord c >= 128
 
 fun nextToken (loc: Region.loc) (s: Substring.substring) =
   let
@@ -61,13 +74,21 @@ fun nextToken (loc: Region.loc) (s: Substring.substring) =
     | SOME (#":", s') => charTok Token.COLON s'
     | SOME (#"=", s') => charTok Token.EQ s'
     | SOME (#",", s') => charTok Token.COMMA s'
+    | SOME (#"?", s') => charTok Token.QUESTION s'
+    | SOME (#"@", s') => charTok Token.AT s'
     | SOME (#"\\", s') => charTok Token.BACKSLASH s'
     | SOME (#"*", s') => charTok Token.ASTERISK s'
     | SOME (#"-", s') =>
         (case Substring.getc s' of
            SOME (#">", s') =>
-             let val loc' = Region.next (Region.next loc)
-             in SOME ((Token.ARROW, Region.mkReg (loc, loc')), loc', s')
+             let
+               val loc' = Region.next loc
+             in
+               SOME
+                 ( (Token.ARROW, Region.mkReg (loc, loc'))
+                 , (Region.next loc')
+                 , s'
+                 )
              end
          | _ => charTok Token.DASH s')
     | SOME (#"#", s') => charTok Token.HASH s'
@@ -76,7 +97,7 @@ fun nextToken (loc: Region.loc) (s: Substring.substring) =
     | SOME (#"\"", s') =>
         let
           val (lit, s') = Substring.splitl (fn c => c <> #"\"") s'
-          val loc' = repeat (Substring.size lit + 2) Region.next loc
+          val loc' = repeat (Substring.size lit + 1) Region.next loc
         in
           case Substring.getc s' of
             SOME (#"\"", s') =>
@@ -84,7 +105,7 @@ fun nextToken (loc: Region.loc) (s: Substring.substring) =
                 ( ( Token.STRING (Substring.string lit)
                   , Region.mkReg (loc, loc')
                   )
-                , loc'
+                , (Region.next loc')
                 , s'
                 )
           | _ =>
@@ -93,10 +114,8 @@ fun nextToken (loc: Region.loc) (s: Substring.substring) =
                  ^ "\nUnclosed string literal.")
         end
     | SOME (c, _) =>
-        if Char.isAlphaNum c orelse ord c >= 128 then
+        if constituent c then
           let
-            fun constituent c =
-              Char.isAlphaNum c orelse c = #"_" orelse ord c >= 128
             val (w, s') = Substring.splitl constituent s
             val loc' = repeat (Substring.size w - 1) Region.next loc
           in
@@ -175,17 +194,25 @@ local
 
   val pSubExp = choice [eat LPAREN *> eat RPAREN *> accept "()", pWord]
 
+  val pIntType = choice
+    [ eat (WORD "i8") *> accept I8
+    , eat (WORD "i16") *> accept I16
+    , eat (WORD "i32") *> accept I32
+    , eat (WORD "i64") *> accept I64
+    ]
+
+  val pFloatType = choice
+    [ eat (WORD "f16") *> accept F16
+    , eat (WORD "f32") *> accept F32
+    , eat (WORD "f64") *> accept F64
+    ]
+
   fun pType' () =
     choice
       [ eat (WORD "unit") *> accept UNIT
       , eat (WORD "bool") *> accept BOOL
-      , eat (WORD "i8") *> accept I8
-      , eat (WORD "i16") *> accept I16
-      , eat (WORD "i32") *> accept I32
-      , eat (WORD "i64") *> accept I64
-      , eat (WORD "f16") *> accept F16
-      , eat (WORD "f32") *> accept F32
-      , eat (WORD "f64") *> accept F64
+      , INT <$> pIntType
+      , FLOAT <$> pFloatType
       , liftM2 ARRAY (brackets pSubExp, delay0 pType')
       ]
 
@@ -209,6 +236,14 @@ local
 
   val pRet = pRetType >>> choice [eat HASH *> pRetAls, accept (RETALS ([], []))]
 
+  fun pConvOp s cop t1 t2 =
+    let
+      fun cop' f se t =
+        (cop (f, t), se)
+    in
+      eat (WORD s) *> (cop' <$> t1 <*> pSubExp <*> (eat (WORD "to") *> t2))
+    end
+
   fun pExp () =
     choice
       [ eat (WORD "apply")
@@ -219,6 +254,7 @@ local
           , eat COLON *> braces (sepBy pRet (eat COMMA))
           )
       , SOAC <$> delay0 pSOAC
+      , CONVOP <$> pConvOp "sext" SEXT pIntType pIntType
       , liftM2 BINOP (pBinOp, parens (pSubExp >>> (eat COMMA *> pSubExp)))
       , SUBEXP <$> pSubExp
       ]
@@ -265,6 +301,6 @@ local
     end
 
 in
-  val pProg: Prog FutParse.p = liftM3 PROG
-    (pTypes, many (pStm ()), many pFunDef)
+  val pProg: Prog FutParse.p =
+    liftM3 PROG (pTypes, many (pStm ()), many pFunDef) <* eof
 end
