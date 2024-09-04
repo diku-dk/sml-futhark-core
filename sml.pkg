@@ -2,4 +2,5 @@ package github.com/diku-dk/sml-futhark-core
 
 require {
   github.com/diku-dk/sml-parse 1.0.0 #bf7584331036903a1c01be3cb1bba72931639857
+  github.com/diku-dk/sml-pretty 0.0.0-20240904152022+37c90bea5e97d37e8261dc9ebd385d76c2884399 #37c90bea5e97d37e8261dc9ebd385d76c2884399
 }

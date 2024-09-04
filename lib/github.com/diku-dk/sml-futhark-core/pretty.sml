@@ -1,91 +1,117 @@
-fun intersperse y [] = []
-  | intersperse y [x] = [x]
-  | intersperse y (x :: xs) =
-      x :: y :: intersperse y xs
+local
+  open Pretty
+  infix ^+^ ^^
 
-fun punctuate c = concat o intersperse c
+  fun x ^+^ y =
+    x ^^ text " " ^^ y
 
-fun prettySubExp se = se
+  fun parens x =
+    text "(" ^^ x ^^ text ")"
 
-fun prettyAttr (ATTR_INT x) = Int.toString x
-  | prettyAttr (ATTR_NAME x) = x
-  | prettyAttr (ATTR_COMP (x, attrs)) =
-      x ^ "(" ^ punctuate ", " (map prettyAttr attrs) ^ ")"
+  fun braces x =
+    text "{" ^^ x ^^ text "}"
 
-val prettyAttrs =
-  punctuate "\n" o map (fn x => "#[" ^ prettyAttr x ^ "]" ^ "\n")
+  fun brackets x =
+    text "[" ^^ x ^^ text "]"
 
-fun prettyIntType I8 = "i8"
-  | prettyIntType I16 = "i16"
-  | prettyIntType I32 = "i32"
-  | prettyIntType I64 = "i64"
+  fun intersperse y [] = []
+    | intersperse y [x] = [x]
+    | intersperse y (x :: xs) =
+        x :: y :: intersperse y xs
 
-fun prettyFloatType F16 = "f16"
-  | prettyFloatType F32 = "f32"
-  | prettyFloatType F64 = "f64"
+  fun punctuate c = concat o intersperse c
 
-fun prettyType UNIT = "unit"
-  | prettyType BOOL = "bool"
-  | prettyType (INT x) = prettyIntType x
-  | prettyType (FLOAT x) = prettyFloatType x
-  | prettyType (ARRAY (d, t)) =
-      "[" ^ prettySubExp d ^ "]" ^ prettyType t
+  fun prettySubExp se = text se
 
-fun prettyRetType (UNIQUE t) = "*" ^ prettyType t
-  | prettyRetType (NONUNIQUE t) = prettyType t
+  fun prettyAttr (ATTR_INT x) = int x
+    | prettyAttr (ATTR_NAME x) = text x
+    | prettyAttr (ATTR_COMP (x, attrs)) =
+        text x ^^ parens (punctuate (text ", ") (map prettyAttr attrs))
 
-fun prettyRetAls (RETALS (pals, rals)) =
-  "("
-  ^
-  punctuate ", "
-    [ "[" ^ punctuate "," (map Int.toString pals) ^ "]"
-    , "[" ^ punctuate "," (map Int.toString rals) ^ "]"
-    ]
+  val prettyAttrs =
+    punctuate newline o map (fn x => text "#" ^^ brackets (prettyAttr x))
 
-fun prettyRet ret =
-  "{"
-  ^
-  punctuate ", "
-    (map (fn (t, als) => prettyRetType t ^ "#" ^ prettyRetAls als) ret) ^ "}"
+  fun prettyIntType I8 = text "i8"
+    | prettyIntType I16 = text "i16"
+    | prettyIntType I32 = text "i32"
+    | prettyIntType I64 = text "i64"
 
-fun prettyParam (v, t) = v ^ ": " ^ prettyType t
+  fun prettyFloatType F16 = text "f16"
+    | prettyFloatType F32 = text "f32"
+    | prettyFloatType F64 = text "f64"
 
-fun prettyPat (PAT pes) =
-  "{" ^ punctuate ", " (map prettyParam pes) ^ "}"
+  fun prettyType UNIT = text "unit"
+    | prettyType BOOL = text "bool"
+    | prettyType (INT x) = prettyIntType x
+    | prettyType (FLOAT x) = prettyFloatType x
+    | prettyType (ARRAY (d, t)) =
+        brackets (prettySubExp d) ^^ prettyType t
 
-fun prettyExp (SUBEXP se) = se
-  | prettyExp (BINOP (f, (x, y))) =
-      f ^ "(" ^ x ^ ", " ^ y ^ ")"
-  | prettyExp (APPLY (f, args, ret)) =
-      "apply " ^ f ^ "(" ^ punctuate ", " (map prettySubExp args) ^ ")" ^ " : "
-      ^ prettyRet ret
-  | prettyExp (CONVOP (SEXT (ft, tt), se)) =
-      punctuate " "
-        ["sext", prettyIntType ft, prettySubExp se, prettyIntType tt]
-  | prettyExp (SOAC soac) = prettySoac soac
+  fun prettyRetType (UNIQUE t) = text "*" ^^ prettyType t
+    | prettyRetType (NONUNIQUE t) = prettyType t
 
-and prettyStm (STM (pat, exp)) =
-  "let " ^ prettyPat pat ^ " = " ^ prettyExp exp
+  fun prettyRetAls (RETALS (pals, rals)) =
+    parens (punctuate (text ", ")
+      [ brackets (punctuate (text ",") (map int pals))
+      , brackets (punctuate (text ",") (map int rals))
+      ])
 
-and prettyBody (BODY (stms, res)) =
-  "{\n"
-  ^
-  punctuate "\n"
-    (map prettyStm stms @ ["in {" ^ punctuate ", " (map prettySubExp res) ^ "}"])
-  ^ "\n}"
+  fun prettyRet ret =
+    braces (punctuate (text ", ")
+      (map (fn (t, als) => prettyRetType t ^^ text "#" ^^ prettyRetAls als) ret))
 
-and prettySoac (MAP (w, arrs, lam)) =
-  "map(" ^ prettySubExp w ^ ", {" ^ punctuate "," arrs ^ "}, "
-  ^ prettyLambda lam ^ ")"
+  fun prettyParam (v, t) =
+    text v ^^ text ":" ^+^ prettyType t
 
-and prettyLambda (LAMBDA (params, types, body)) =
-  "\\ {" ^ punctuate " " (map prettyParam params) ^ "} : {"
-  ^ punctuate ", " (map prettyType types) ^ "} -> " ^ prettyBody body
+  fun prettyPat (PAT pes) =
+    braces (punctuate (text ", ") (map prettyParam pes))
 
-fun prettyFunDef (FUNDEF {attrs, name, params, ret, body}) =
-  prettyAttrs attrs ^ "fun " ^ name ^ "("
-  ^ (punctuate ", " (map prettyParam params)) ^ ")" ^ "\n" ^ ": "
-  ^ prettyRet ret ^ " = " ^ prettyBody body
+  fun prettyExp (SUBEXP se) = prettySubExp se
+    | prettyExp (BINOP (f, (x, y))) =
+        text f ^^ parens (prettySubExp x ^^ text ", " ^^ prettySubExp y)
+    | prettyExp (APPLY (f, args, ret)) =
+        text "apply" ^+^ text f
+        ^^ parens (punctuate (text ", ") (map prettySubExp args)) ^+^ text ":"
+        ^+^ prettyRet ret
+    | prettyExp (CONVOP (SEXT (ft, tt), se)) =
+        punctuate (text " ")
+          [text "sext", prettyIntType ft, prettySubExp se, prettyIntType tt]
+    | prettyExp (SOAC soac) = prettySoac soac
 
-fun prettyProg (PROG ((), stms, funs)) =
-  punctuate "\n" (map prettyStm stms @ map prettyFunDef funs)
+  and prettyStm (STM (pat, exp)) =
+    (nest 2 o group)
+      (text "let" ^+^ prettyPat pat ^+^ text "=" ^^ newline ^^ prettyExp exp)
+
+  and prettyBody (BODY (stms, res)) =
+    (braces o nest 2 o group)
+      (newline
+       ^^
+       (punctuate newline
+          (map prettyStm stms
+           @
+           [text "in {" ^^ punctuate (text ", ") (map prettySubExp res)
+            ^^ text "}"])))
+
+  and prettySoac (MAP (w, arrs, lam)) =
+    text "map"
+    ^^
+    parens
+      (prettySubExp w ^^ text ", "
+       ^^ braces (punctuate (text ",") (map text arrs)) ^^ text ","
+       ^+^ prettyLambda lam)
+
+  and prettyLambda (LAMBDA (params, types, body)) =
+    text "\\ {" ^^ punctuate (text " ") (map prettyParam params) ^^ text "} : {"
+    ^^ punctuate (text ", ") (map prettyType types) ^^ text "} -> "
+    ^^ prettyBody body
+
+  fun prettyFunDef (FUNDEF {attrs, name, params, ret, body}) =
+    prettyAttrs attrs ^^ text "fun" ^+^ text name
+    ^^ parens ((punctuate (text ", ") (map prettyParam params))) ^^ newline
+    ^^ text ": " ^^ prettyRet ret ^^ text " = " ^^ prettyBody body
+
+in
+  fun prettyProg (PROG ((), stms, funs)) =
+    toString 100
+      (concat (map prettyStm stms) ^^ newline ^^ concat (map prettyFunDef funs))
+end
