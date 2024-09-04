@@ -1,9 +1,7 @@
 local
   open Pretty
+  open Utility
   infix ^+^ ^^
-
-  fun x ^+^ y =
-    x ^^ text " " ^^ y
 
   fun parens x =
     text "(" ^^ x ^^ text ")"
