@@ -236,7 +236,65 @@ local
   val pRetType = choice
     [UNIQUE <$> (eat ASTERISK *> pType), NONUNIQUE <$> pType]
 
-  val pBinOp = eat (WORD "add32") *> accept "add32"
+  val pUnOp =
+    let
+      fun opt s =
+        eat (WORD s) *> accept s
+    in
+      (choice o map opt) ["ssignum8", "ssignum16", "ssignum32", "ssignum64"]
+    end
+
+  val pBinOp =
+    let
+      fun opt s =
+        eat (WORD s) *> accept s
+    in
+      (choice o map opt)
+        [ (* integer arithmetic *) "add8"
+        , "add16"
+        , "add32"
+        , "add64"
+        , "mul8"
+        , "mul16"
+        , "mul32"
+        , "mul64"
+        , "sub8"
+        , "sub16"
+        , "sub32"
+        , "sub64"
+        (* float arithmetic *)
+        , "fadd16"
+        , "fadd32"
+        , "fadd64"
+        , "fmul16"
+        , "fmul32"
+        , "fmul64"
+        , "fdiv16"
+        , "fdiv32"
+        , "fdiv64"
+        , "fsub16"
+        , "fsub32"
+        , "fsub64"
+        (* comparisons *)
+        , "eq_i8"
+        , "eq_i16"
+        , "eq_i32"
+        , "eq_i64"
+        , "eq_f16"
+        , "eq_f32"
+        , "eq_f64"
+        , "eq_bool"
+        , "sle8"
+        , "sle16"
+        , "sle32"
+        , "sle64"
+        , "slt8"
+        , "slt16"
+        , "slt32"
+        , "slt64"
+        ]
+    end
+
 
   val pRetAls: RetAls p =
     parens
@@ -265,6 +323,7 @@ local
       , SOAC <$> delay0 pSOAC
       , CONVOP <$> pConvOp "sext" SEXT pIntType pIntType
       , liftM2 BINOP (pBinOp, parens (pSubExp >>> (eat COMMA *> pSubExp)))
+      , liftM2 UNOP (pUnOp, pSubExp)
       , SUBEXP <$> pSubExp
       ]
 

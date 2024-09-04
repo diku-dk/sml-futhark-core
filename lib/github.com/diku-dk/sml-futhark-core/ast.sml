@@ -32,6 +32,7 @@ datatype ConvOp = SEXT of IntType * IntType
 
 datatype Exp =
   SUBEXP of SubExp
+| UNOP of string * SubExp
 | BINOP of string * (SubExp * SubExp)
 | CONVOP of ConvOp * SubExp
 | APPLY of string * SubExp list * (RetType * RetAls) list

@@ -67,6 +67,7 @@ local
     braces (punctuate (text ", ") (map prettyParam pes))
 
   fun prettyExp (SUBEXP se) = prettySubExp se
+    | prettyExp (UNOP (f, x)) = text f ^+^ prettySubExp x
     | prettyExp (BINOP (f, (x, y))) =
         text f ^^ parens (prettySubExp x ^^ text ", " ^^ prettySubExp y)
     | prettyExp (APPLY (f, args, ret)) =
