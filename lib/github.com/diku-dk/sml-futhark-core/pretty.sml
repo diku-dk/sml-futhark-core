@@ -111,6 +111,5 @@ local
 
 in
   fun prettyProg (PROG ((), stms, funs)) =
-    toString 100
-      (concat (map prettyStm stms) ^^ newline ^^ concat (map prettyFunDef funs))
+    toString 100 (stack (map prettyStm stms @ map prettyFunDef funs))
 end

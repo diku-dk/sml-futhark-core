@@ -2,12 +2,16 @@ fun main () =
   let
     val srcname = List.nth (CommandLine.arguments (), 0)
     val s = TextIO.inputAll (TextIO.openIn srcname)
-    val tokens = tokenise srcname s
   in
-    case FutParse.parse pProg tokens of
-      FutParse.NO (loc, errmsg) =>
-        print (Region.ppLoc loc ^ ": " ^ errmsg () ^ "\n")
-    | FutParse.OK prog => print (prettyProg prog)
+    (*
+        case tokeniseCoreFuthark {srcname = srcname, input = s} of
+          NO errmsg => print errmsg
+        | OK tokens =>
+            List.app (fn (t, _) => print (Token.pp_token t ^ "\n")) tokens
+    *)
+    case parseCoreFuthark {srcname = srcname, input = s} of
+      NO errmsg => print errmsg
+    | OK prog => print (prettyProg prog ^ "\n")
   end
 
 

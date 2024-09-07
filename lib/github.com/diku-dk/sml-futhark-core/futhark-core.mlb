@@ -1,5 +1,6 @@
 local $(SML_LIB)/basis/basis.mlb
       ../sml-parse/parse.mlb
+      ../sml-parse/char_token.mlb
       ../sml-pretty/pretty.mlb
 in
 ast.sml
